@@ -20,6 +20,16 @@ const userForEventsSchema = Schema({
     phoneNumber: {
         type: Number,
         required: true
+    },
+    events: {
+        type: [{
+            type: Schema.Types.ObjectId,
+            ref: 'userevent'
+        }],
+    },
+    eventsCount: {
+        type: Number,
+        default: 0,
     }
 })
 

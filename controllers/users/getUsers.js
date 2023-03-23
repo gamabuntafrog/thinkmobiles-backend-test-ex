@@ -5,8 +5,6 @@ const getUsers = async (req, res) => {
 
     const users = await UserForEvents.find()
 
-
-
     const formattedUsers = users.map((user) => {
         const {username, firstName, lastName, email, phoneNumber, _id} = user
 
