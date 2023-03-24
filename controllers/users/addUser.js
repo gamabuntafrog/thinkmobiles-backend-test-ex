@@ -1,7 +1,10 @@
 const UserForEvents = require("../../models/userForEvents");
-const {NotFound, Conflict} = require('http-errors')
+const {BadRequest, Conflict} = require('http-errors')
+
 
 const addUser = async (req, res) => {
+
+
     const {username, firstName, lastName, email, phoneNumber} = req.body;
 
     const users = await UserForEvents.find({

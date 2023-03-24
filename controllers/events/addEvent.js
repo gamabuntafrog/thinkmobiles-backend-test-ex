@@ -16,6 +16,9 @@ const addEvent = async (req, res) => {
     await UserForEvents.findByIdAndUpdate(id,{
         $push: {
             events: event._id
+        },
+        $inc: {
+            eventsCount: 1
         }
     })
 

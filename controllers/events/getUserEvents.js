@@ -13,7 +13,7 @@ const getUserEvents = async (req, res) => {
 
     const {events} = user;
 
-    console.log(events)
+    // console.log(events)
 
     const formattedEvents = events.map((event) => {
         const {title, description, startDate, endDate, _id} = event

@@ -1,12 +1,14 @@
 const UserForEvents = require("../../models/userForEvents");
+const {validationResult} = require("express-validator");
 
 
 const getUsers = async (req, res) => {
 
-    const users = await UserForEvents.find()
+    const users = await UserForEvents.find().populate('events')
 
     const formattedUsers = users.map((user) => {
-        const {username, firstName, lastName, email, phoneNumber, _id} = user
+        const {username, firstName, lastName, email, phoneNumber, _id, events, eventsCount} = user
+        const nextEventDate = events.find(({startDate}) => startDate >= Date.now())?.startDate || null
 
         return {
             username,
@@ -14,7 +16,9 @@ const getUsers = async (req, res) => {
             lastName,
             email,
             phoneNumber,
-            _id
+            _id,
+            nextEventDate,
+            eventsCount
         }
     })
 
