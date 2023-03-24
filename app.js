@@ -7,6 +7,7 @@ const cors = require('cors')
 const indexRouter = require('./routes/index');
 const usersRouter = require('./routes/users');
 const eventsRouter = require('./routes/events');
+const authRouter = require('./routes/auth');
 
 const app = express();
 
@@ -35,6 +36,7 @@ connectMongoose()
 app.use('/', indexRouter);
 app.use('/users', usersRouter);
 app.use('/events', eventsRouter);
+app.use('/auth', authRouter);
 
 // catch 404 and forward to error handler
 app.use(function (req, res, next) {

@@ -1,27 +1,34 @@
 const UserForEvents = require("../../models/userForEvents");
 const {BadRequest, Conflict} = require('http-errors')
+const User = require("../../models/user");
 
 
 const addUser = async (req, res) => {
-
-
+    const {currentUserId} = req;
     const {username, firstName, lastName, email, phoneNumber} = req.body;
 
-    const users = await UserForEvents.find({
+    const isUserExists = await UserForEvents.findOne({
         email,
-        username
+        username,
     })
 
-    if (users.length > 0) {
+    if (isUserExists) {
         throw new Conflict('User already exists')
     }
 
-    await UserForEvents.create({
+    const user = await UserForEvents.create({
         username,
         firstName,
         lastName,
         email,
-        phoneNumber
+        phoneNumber,
+        creator: currentUserId
+    })
+
+    await User.findByIdAndUpdate(currentUserId, {
+        $push: {
+            usersForEvents: user._id
+        }
     })
 
     res.status(201).json({

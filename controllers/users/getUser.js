@@ -2,9 +2,13 @@ const UserForEvents = require("../../models/userForEvents");
 const {NotFound} = require('http-errors')
 
 const getUser = async (req, res) => {
+    const {currentUserId} = req;
     const {id: userId} = req.params;
 
-    const user = await UserForEvents.findById(userId)
+    const user = await UserForEvents.findOne({
+        _id: userId,
+        creator: currentUserId
+    })
 
     if (!user) {
         throw new NotFound('User does not exist')

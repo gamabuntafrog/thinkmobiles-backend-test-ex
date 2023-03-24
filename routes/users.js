@@ -8,14 +8,15 @@ const {body, validationResult} = require('express-validator');
 const {BadRequest} = require("http-errors");
 const checkValidation = require("../middlewares/checkValidation");
 const userForEventsSchema = require("../schemas/userForEvents");
+const auth = require("../middlewares/auth");
 
 
 
 
-router.get('/', ctrlWrapper(getUsers));
+router.get('/', ctrlWrapper(auth), ctrlWrapper(getUsers));
 
-router.get('/:id', ctrlWrapper(getUser));
+router.get('/:id', ctrlWrapper(auth), ctrlWrapper(getUser));
 
-router.post('/', ...userForEventsSchema, checkValidation, ctrlWrapper(addUser))
+router.post('/', ctrlWrapper(auth), ...userForEventsSchema, checkValidation, ctrlWrapper(addUser))
 
 module.exports = router;

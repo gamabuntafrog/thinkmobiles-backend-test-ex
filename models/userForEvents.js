@@ -1,6 +1,11 @@
 const {Schema, model} = require('mongoose')
 
 const userForEventsSchema = Schema({
+    creator: {
+        type: Schema.Types.ObjectId,
+        ref: 'user',
+        required: true
+    },
     username: {
         type: String,
         required: true
@@ -24,7 +29,7 @@ const userForEventsSchema = Schema({
     events: {
         type: [{
             type: Schema.Types.ObjectId,
-            ref: 'userevent'
+            ref: 'user_event'
         }],
     },
     eventsCount: {
@@ -33,6 +38,6 @@ const userForEventsSchema = Schema({
     }
 })
 
-const UserForEvents = model('user', userForEventsSchema)
+const UserForEvents = model('user_for_events', userForEventsSchema)
 
 module.exports = UserForEvents

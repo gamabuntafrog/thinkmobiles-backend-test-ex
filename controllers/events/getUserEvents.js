@@ -3,17 +3,16 @@ const UserEvent = require("../../models/userEvent");
 const {NotFound} = require('http-errors');
 
 const getUserEvents = async (req, res) => {
+    const {currentUserId} = req;
     const {id} = req.params;
 
     const user = await UserForEvents.findById(id).populate('events')
 
-    if (!user.events) {
+    if (!user?.events || user?.creator?.toString() !== currentUserId.toString()) {
         throw new NotFound('Events for this user does not exist');
     }
 
     const {events} = user;
-
-    // console.log(events)
 
     const formattedEvents = events.map((event) => {
         const {title, description, startDate, endDate, _id} = event
