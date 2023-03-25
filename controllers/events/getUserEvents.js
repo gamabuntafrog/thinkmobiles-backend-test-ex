@@ -6,6 +6,8 @@ const getUserEvents = async (req, res) => {
     const {currentUserId} = req;
     const {id} = req.params;
 
+    const sortBy = req.query.sortBy || null;
+    const variant = req.query.variant || 'asc';
     const page = req.query.page || 0;
     const limit = 5;
 
@@ -13,14 +15,21 @@ const getUserEvents = async (req, res) => {
     const end = ((page * limit) + 5);
 
     const user = await UserForEvents.findById(id)
-        .slice('events', [start, end])
-        .populate('events')
+        .populate({
+            path: 'events',
+            options: {
+                sort: {
+                    [sortBy]: variant
+                }
+            },
+        })
+    // .slice('events', [start, end])
 
 
     if (!user?.events || user?.creator?.toString() !== currentUserId.toString()) {
         throw new NotFound('Events for this user does not exist');
     }
-    const formattedEvents = user.events.map((event) => {
+    const formattedEvents = user.events.slice(start, end).map((event) => {
         const {title, description, startDate, endDate, _id} = event
 
         return {title, description, startDate, endDate, _id}
