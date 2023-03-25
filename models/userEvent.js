@@ -1,5 +1,11 @@
 const {Schema, model} = require('mongoose')
 
+function isMyFieldRequired(fieldName) {
+    return function () {
+        return typeof this[fieldName] === 'string' ? false : true
+    }
+}
+
 const userEventSchema = Schema({
     to: {
         type: Schema.Types.ObjectId,
@@ -11,7 +17,7 @@ const userEventSchema = Schema({
     },
     description: {
         type: String,
-        required: true
+        required: isMyFieldRequired('description')
     },
     startDate: {
         type: Schema.Types.Date,
