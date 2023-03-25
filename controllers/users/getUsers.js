@@ -12,17 +12,19 @@ const getUsers = async (req, res) => {
     const end = ((page * limit) + 5);
 
     const currentUser = await User.findById(currentUserId);
-    const {usersForEvents: users} = await User.findById(currentUserId).populate({
-        path: 'usersForEvents',
-        options: {
-            sort: {
-                [sortBy]: variant
+    const {usersForEvents: users} = await User.findById(currentUserId)
+        .populate({
+            path: 'usersForEvents',
+            options: {
+                sort: {
+                    [sortBy]: variant
+                },
+                collation: {locale: "en"}
+            },
+            populate: {
+                path: 'events'
             }
-        },
-        populate: {
-            path: 'events'
-        }
-    })
+        })
 
     let formattedUsers;
 
