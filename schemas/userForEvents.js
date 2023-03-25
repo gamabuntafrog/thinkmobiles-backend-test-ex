@@ -7,4 +7,6 @@ const userForEventsSchema = [
     body('lastName').exists().isLength({min: 3, max: 14}),
 ]
 
+
+
 module.exports = userForEventsSchema;
