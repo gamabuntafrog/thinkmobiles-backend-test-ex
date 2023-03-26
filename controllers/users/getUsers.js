@@ -46,7 +46,7 @@ const getUsers = async (req, res) => {
         })
             .sort((a, b) => {
                 if (!b.nextEventDate) {
-                    return 1
+                    return -1
                 }
                 if (!a.nextEventDate) {
                     return 1

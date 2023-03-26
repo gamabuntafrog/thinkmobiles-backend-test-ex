@@ -23,12 +23,12 @@ const getUserEvents = async (req, res) => {
                 }
             },
         })
-    // .slice('events', [start, end])
 
 
     if (!user?.events || user?.creator?.toString() !== currentUserId.toString()) {
         throw new NotFound('Events for this user does not exist');
     }
+
     const formattedEvents = user.events.slice(start, end).map((event) => {
         const {title, description, startDate, endDate, _id} = event
 
