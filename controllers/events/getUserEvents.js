@@ -36,7 +36,7 @@ const getUserEvents = async (req, res) => {
     {
       $unwind: {
         path: '$events',
-        preserveNullAndEmptyArrays: true
+        preserveNullAndEmptyArrays: false
       }
     }
   ]

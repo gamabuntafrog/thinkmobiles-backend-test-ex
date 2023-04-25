@@ -35,7 +35,7 @@ const getUsers = async (req, res) => {
     {
       $unwind: {
         path: '$usersForEvents',
-        preserveNullAndEmptyArrays: true
+        preserveNullAndEmptyArrays: false
       }
     }
   ]
