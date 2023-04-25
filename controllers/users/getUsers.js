@@ -1,88 +1,130 @@
-const User = require("../../models/user");
-
+const paginationHelper = require('../../helpers/paginationDBHelper')
+const getPagesCount = require('../../helpers/getPagesCount')
+const User = require('../../models/user')
+const getSortingQuery = require('../../helpers/getSortingQuery')
+const { Types } = require('mongoose')
 
 const getUsers = async (req, res) => {
-    const {currentUserId} = req;
-    const sortBy = req.query.sortBy || null;
-    const variant = req.query.variant || 'asc';
-    const page = req.query.page || 0;
-    const limit = 5;
+  const { currentUserId, query } = req
 
-    const start = (page * limit);
-    const end = ((page * limit) + 5);
+  const { sortBy, variant } = getSortingQuery(query)
+  const { skip, limit } = paginationHelper(query)
 
-    const currentUser = await User.findById(currentUserId);
-    const {usersForEvents: users} = await User.findById(currentUserId)
-        .populate({
-            path: 'usersForEvents',
-            options: {
-                sort: {
-                    [sortBy]: variant
-                },
-                collation: {locale: "en"}
-            },
-            populate: {
-                path: 'events'
-            }
-        })
+  const sorting = {}
 
-    let formattedUsers;
+  if (sortBy) {
+    sorting[sortBy] = variant
+  }
 
-    if (sortBy === 'nextEventDate') {
-        formattedUsers = users.map((user) => {
-            const {username, firstName, lastName, email, phoneNumber, _id, events, eventsCount} = user
-            const nextEventDate = events.find(({startDate}) => startDate >= Date.now())?.startDate || null
+  const match = {
+    _id: new Types.ObjectId(currentUserId)
+  }
 
-            return {
-                username,
-                firstName,
-                lastName,
-                email,
-                phoneNumber,
-                _id,
-                nextEventDate,
-                eventsCount
-            }
-        })
-            .sort((a, b) => {
-                if (!b.nextEventDate) {
-                    return -1
-                }
-                if (!a.nextEventDate) {
-                    return 1
-                }
-
-                return variant === 'asc' ? a.nextEventDate - b.nextEventDate : b.nextEventDate - a.nextEventDate;
-            })
-            .slice(start, end)
-    } else {
-        formattedUsers = users.slice(start, end).map((user) => {
-            const {username, firstName, lastName, email, phoneNumber, _id, events, eventsCount} = user
-            const nextEventDate = events.find(({startDate}) => startDate >= Date.now())?.startDate || null
-
-            return {
-                username,
-                firstName,
-                lastName,
-                email,
-                phoneNumber,
-                _id,
-                nextEventDate,
-                eventsCount
-            }
-        })
+  const firstStepsOfPipeline = [
+    {
+      $match: match
+    },
+    {
+      $lookup: {
+        from: 'user_for_events',
+        localField: 'usersForEvents',
+        foreignField: '_id',
+        as: 'usersForEvents'
+      }
+    },
+    {
+      $unwind: {
+        path: '$usersForEvents',
+        preserveNullAndEmptyArrays: true
+      }
     }
+  ]
 
-    const pages = Math.ceil(currentUser.usersForEvents.length / limit)
+  const pipeline = [
+    {
+      $facet: {
+        documents: [
+          ...firstStepsOfPipeline,
+          {
+            $replaceRoot: {
+              newRoot: '$usersForEvents'
+            }
+          },
+          {
+            $lookup: {
+              from: 'user_events',
+              localField: 'events',
+              foreignField: '_id',
+              as: 'events'
+            }
+          },
+          {
+            $addFields: {
+              nextEventDate: {
+                $first: {
+                  $filter: {
+                    input: '$events.startDate',
+                    as: 'startDate',
+                    cond: {
+                      $gte: ['$$startDate', new Date()]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          ...(sortBy
+            ? [
+                {
+                  $sort: sorting
+                }
+              ]
+            : []),
+          {
+            $skip: skip
+          },
+          {
+            $limit: limit
+          },
+          {
+            $project: {
+              username: 1,
+              firstName: 1,
+              lastName: 1,
+              email: 1,
+              nextEventDate: 1,
+              eventsCount: 1,
+              phoneNumber: 1
+            }
+          }
+        ],
+        countOfDocuments: [
+          ...firstStepsOfPipeline,
+          {
+            $count: 'count'
+          }
+        ]
+      }
+    },
+    {
+      $project: {
+        documents: 1,
+        countOfNotFilteredDocuments: { $arrayElemAt: ['$countOfDocuments.count', 0] }
+      }
+    }
+  ]
 
-    res.status(200).json({
-        message: 'success',
-        code: 200,
-        data: {
-            pages: pages,
-            users: formattedUsers
-        }
-    })
+  const [{ documents, countOfNotFilteredDocuments }] = await User.aggregate(pipeline).exec()
+  const pages = getPagesCount(countOfNotFilteredDocuments, limit)
+
+  res.status(200).json({
+    message: 'success',
+    code: 200,
+    data: {
+      pages: pages,
+      users: documents
+    }
+  })
 }
 
-module.exports = getUsers;
+module.exports = getUsers

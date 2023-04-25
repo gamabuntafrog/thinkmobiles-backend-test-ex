@@ -1,18 +1,16 @@
-const {validationResult} = require("express-validator");
-const {BadRequest} = require("http-errors");
+const { validationResult } = require('express-validator')
+const { BadRequest } = require('http-errors')
 const checkValidation = (req, res, next) => {
+  const { errors } = validationResult(req)
 
-    const {errors} = validationResult(req);
+  if (errors.length > 0) {
+    const error = new BadRequest('Validation error')
+    next(error)
 
-    if (errors.length > 0) {
-        const error = new BadRequest('Validation error')
-        next(error)
+    return
+  }
 
-        return
-    }
-
-    next()
-
+  next()
 }
 
 module.exports = checkValidation
