@@ -1,4 +1,4 @@
-# thinkmobiles-backend-test-ex
+# backend-test-ex
 
 Before running:
 
