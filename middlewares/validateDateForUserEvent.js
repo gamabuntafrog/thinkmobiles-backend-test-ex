@@ -1,21 +1,54 @@
 const { NotFound, Conflict } = require('http-errors')
 const UserForEvents = require('../models/userForEvents')
+const { Types } = require('mongoose')
 
 const validateDateForUserEvent = async (userId, body) => {
   const { startDate, endDate } = body
 
-  const user = await UserForEvents.findById(userId).populate('events').lean()
+  const pipeline = [
+    {
+      $match: {
+        _id: new Types.ObjectId(userId)
+      }
+    },
+    {
+      $lookup: {
+        from: 'user_events',
+        localField: 'events',
+        foreignField: '_id',
+        as: 'events'
+      }
+    },
+    {
+      $project: {
+        isValidDate: {
+          $allElementsTrue: {
+            $map: {
+              input: '$events',
+              in: {
+                $or: [
+                  {
+                    $and: [
+                      { $lt: [new Date(startDate), '$$this.startDate'] },
+                      { $lt: [new Date(endDate), '$$this.startDate'] }
+                    ]
+                  },
+                  {
+                    $and: [
+                      { $gt: [new Date(startDate), '$$this.endDate'] },
+                      { $gt: [new Date(endDate), '$$this.endDate'] }
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
 
-  if (!user.events) {
-    throw new NotFound('Events for this user does not exist')
-  }
-
-  const isValidDate = user.events.every((el) => {
-    return (
-      (new Date(startDate) < el.startDate && new Date(endDate) < el.startDate) ||
-      (new Date(startDate) > el.endDate && new Date(endDate) > el.endDate)
-    )
-  })
+  const [{ isValidDate }] = await UserForEvents.aggregate(pipeline).exec()
 
   if (!isValidDate) {
     throw new Conflict('You can’t create event for this time')
