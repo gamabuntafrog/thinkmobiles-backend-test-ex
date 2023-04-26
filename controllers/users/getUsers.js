@@ -61,15 +61,20 @@ const getUsers = async (req, res) => {
           {
             $addFields: {
               nextEventDate: {
-                $first: {
-                  $filter: {
-                    input: '$events.startDate',
-                    as: 'startDate',
-                    cond: {
-                      $gte: ['$$startDate', new Date()]
+                $ifNull: [
+                  {
+                    $first: {
+                      $filter: {
+                        input: '$events.startDate',
+                        as: 'startDate',
+                        cond: {
+                          $gte: ['$$startDate', new Date()]
+                        }
+                      }
                     }
-                  }
-                }
+                  },
+                  null
+                ]
               }
             }
           },
