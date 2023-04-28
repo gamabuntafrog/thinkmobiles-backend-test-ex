@@ -145,19 +145,6 @@ const getUsersSecond = async (req, res) => {
     _id: new Types.ObjectId(currentUserId)
   }
 
-  const addNextEventDateField = {
-    $addFields: {
-      nextEventDate: {
-        $ifNull: [
-          {
-            $first: '$events.startDate'
-          },
-          null
-        ]
-      }
-    }
-  }
-
   const pipeline = [
     { $match: match },
     {
@@ -224,19 +211,6 @@ const getUsers = async (req, res) => {
 
   const match = {
     _id: new Types.ObjectId(currentUserId)
-  }
-
-  const addNextEventDateField = {
-    $addFields: {
-      nextEventDate: {
-        $ifNull: [
-          {
-            $first: '$events.startDate'
-          },
-          null
-        ]
-      }
-    }
   }
 
   const pipeline = [
