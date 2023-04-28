@@ -4,7 +4,29 @@ const User = require('../../models/user')
 const getSortingQuery = require('../../helpers/getSortingQuery')
 const { Types } = require('mongoose')
 
+// Зробити матч перед facet DONE
+// Зробити addFields після сортування якщо воно не по цьому полю DONE
+// Поставити limit для nextEventDate DONE
+
+// створити декілька агрегацій
+// зробити пошук по полю creator
+
+const getUsersSecond = async (req, res) => {
+  const { currentUserId, query } = req
+
+  const { sortBy, variant } = getSortingQuery(query)
+  const { skip, limit } = paginationHelper(query)
+
+  const sorting = {}
+
+  if (sortBy) {
+    sorting[sortBy] = variant
+  }
+}
+
 const getUsers = async (req, res) => {
+  // return await getUsersSecond(req, res)
+
   const { currentUserId, query } = req
 
   const { sortBy, variant } = getSortingQuery(query)
@@ -20,7 +42,20 @@ const getUsers = async (req, res) => {
     _id: new Types.ObjectId(currentUserId)
   }
 
-  const firstStepsOfPipeline = [
+  const addNextEventDateField = {
+    $addFields: {
+      nextEventDate: {
+        $ifNull: [
+          {
+            $first: '$events.startDate'
+          },
+          null
+        ]
+      }
+    }
+  }
+
+  const pipeline = [
     {
       $match: match
     },
@@ -37,14 +72,10 @@ const getUsers = async (req, res) => {
         path: '$usersForEvents',
         preserveNullAndEmptyArrays: false
       }
-    }
-  ]
-
-  const pipeline = [
+    },
     {
       $facet: {
         documents: [
-          ...firstStepsOfPipeline,
           {
             $replaceRoot: {
               newRoot: '$usersForEvents'
@@ -55,31 +86,17 @@ const getUsers = async (req, res) => {
               from: 'user_events',
               localField: 'events',
               foreignField: '_id',
-              as: 'events'
-            }
-          },
-          {
-            $addFields: {
-              nextEventDate: {
-                $ifNull: [
-                  {
-                    $first: {
-                      $filter: {
-                        input: '$events.startDate',
-                        as: 'startDate',
-                        cond: {
-                          $gte: ['$$startDate', new Date()]
-                        }
-                      }
-                    }
-                  },
-                  null
-                ]
-              }
+              as: 'events',
+              pipeline: [
+                { $match: { $expr: { $gte: ['$startDate', new Date()] } } },
+                { $limit: 1 },
+                { $project: { startDate: 1, endDate: 1 } }
+              ]
             }
           },
           ...(sortBy
             ? [
+                ...(sortBy === 'nextEventDate' ? [addNextEventDateField] : []),
                 {
                   $sort: sorting
                 }
@@ -91,6 +108,7 @@ const getUsers = async (req, res) => {
           {
             $limit: limit
           },
+          ...(sortBy !== 'nextEventDate' ? [addNextEventDateField] : []),
           {
             $project: {
               username: 1,
@@ -104,7 +122,6 @@ const getUsers = async (req, res) => {
           }
         ],
         countOfDocuments: [
-          ...firstStepsOfPipeline,
           {
             $count: 'count'
           }
@@ -114,7 +131,7 @@ const getUsers = async (req, res) => {
     {
       $project: {
         documents: 1,
-        countOfNotFilteredDocuments: { $arrayElemAt: ['$countOfDocuments.count', 0] }
+        countOfNotFilteredDocuments: { $first: '$countOfDocuments.count' }
       }
     }
   ]
