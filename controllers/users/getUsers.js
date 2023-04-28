@@ -79,12 +79,8 @@ const getUsersByCreator = async (req, res) => {
     sorting[sortBy] = variant
   }
 
-  const { usersForEvents } = await User.findById(currentUserId).lean()
-
   const match = {
-    _id: {
-      $in: usersForEvents
-    }
+    creator: currentUserId
   }
 
   const pipeline = [
@@ -128,7 +124,7 @@ const getUsersByCreator = async (req, res) => {
 // Робить всі операції по сортуванню фільтрації та створенню полів в sub-pipeline який знаходиться в середині $lookup
 
 const getUsersSecond = async (req, res) => {
-  // return await getUsersByCreator(req, res)
+  return await getUsersByCreator(req, res)
 
   const { currentUserId, query } = req
 
@@ -196,7 +192,7 @@ const getUsersSecond = async (req, res) => {
 }
 
 const getUsers = async (req, res) => {
-  // return await getUsersSecond(req, res)
+  return await getUsersSecond(req, res)
 
   const { currentUserId, query } = req
 
