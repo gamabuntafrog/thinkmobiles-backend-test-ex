@@ -3,6 +3,7 @@ const getPagesCount = require('../../helpers/getPagesCount')
 const User = require('../../models/user')
 const getSortingQuery = require('../../helpers/getSortingQuery')
 const { Types } = require('mongoose')
+const UserForEvents = require('../../models/userForEvents')
 
 // Зробити матч перед facet DONE
 // Зробити addFields після сортування якщо воно не по цьому полю DONE
@@ -11,10 +12,124 @@ const { Types } = require('mongoose')
 // створити декілька агрегацій
 // зробити пошук по полю creator
 
+const addNextEventDateField = {
+  $addFields: {
+    nextEventDate: {
+      $ifNull: [
+        {
+          $first: '$events.startDate'
+        },
+        null
+      ]
+    }
+  }
+}
+
+const pipelineOfGettingAndSortingUsersForEvents = (sortBy, sorting, skip, limit) => [
+  {
+    $lookup: {
+      from: 'user_events',
+      localField: 'events',
+      foreignField: '_id',
+      as: 'events',
+      pipeline: [
+        { $match: { $expr: { $gte: ['$startDate', new Date()] } } },
+        { $limit: 1 },
+        { $project: { startDate: 1, endDate: 1 } }
+      ]
+    }
+  },
+  ...(sortBy
+    ? [
+        ...(sortBy === 'nextEventDate' ? [addNextEventDateField] : []),
+        {
+          $sort: sorting
+        }
+      ]
+    : []),
+  {
+    $skip: skip
+  },
+  {
+    $limit: limit
+  },
+  ...(sortBy !== 'nextEventDate' ? [addNextEventDateField] : []),
+  {
+    $project: {
+      username: 1,
+      firstName: 1,
+      lastName: 1,
+      email: 1,
+      nextEventDate: 1,
+      eventsCount: 1,
+      phoneNumber: 1
+    }
+  }
+]
+
+const getUsersByCreator = async (req, res) => {
+  const { currentUserId, query } = req
+
+  const { sortBy, variant } = getSortingQuery(query)
+  const { skip, limit } = paginationHelper(query)
+
+  const sorting = {}
+
+  if (sortBy) {
+    sorting[sortBy] = variant
+  }
+
+  const { usersForEvents } = await User.findById(currentUserId).lean()
+
+  const match = {
+    _id: {
+      $in: usersForEvents
+    }
+  }
+
+  const pipeline = [
+    { $match: match },
+    {
+      $facet: {
+        countOfNotFilteredDocuments: [
+          {
+            $count: 'count'
+          }
+        ],
+        documents: [...pipelineOfGettingAndSortingUsersForEvents(sortBy, sorting, skip, limit)]
+      }
+    },
+    {
+      $project: {
+        countOfNotFilteredDocuments: { $first: '$countOfNotFilteredDocuments.count' },
+        documents: 1
+      }
+    }
+  ]
+
+  const [{ documents, countOfNotFilteredDocuments }] = await UserForEvents.aggregate(
+    pipeline
+  ).exec()
+
+  const pages = getPagesCount(countOfNotFilteredDocuments, limit)
+
+  res.status(200).json({
+    message: 'success',
+    code: 200,
+    data: {
+      pages: pages,
+      users: documents
+      // cursor: cursor
+    }
+  })
+}
+
 // getUsersSecond
 // Робить всі операції по сортуванню фільтрації та створенню полів в sub-pipeline який знаходиться в середині $lookup
 
 const getUsersSecond = async (req, res) => {
+  // return await getUsersByCreator(req, res)
+
   const { currentUserId, query } = req
 
   const { sortBy, variant } = getSortingQuery(query)
@@ -56,45 +171,7 @@ const getUsersSecond = async (req, res) => {
             $facet: {
               countOfNotFilteredDocuments: [{ $count: 'count' }],
               documents: [
-                {
-                  $lookup: {
-                    from: 'user_events',
-                    localField: 'events',
-                    foreignField: '_id',
-                    as: 'events',
-                    pipeline: [
-                      { $match: { $expr: { $gte: ['$startDate', new Date()] } } },
-                      { $limit: 1 },
-                      { $project: { startDate: 1, endDate: 1 } }
-                    ]
-                  }
-                },
-                ...(sortBy
-                  ? [
-                      ...(sortBy === 'nextEventDate' ? [addNextEventDateField] : []),
-                      {
-                        $sort: sorting
-                      }
-                    ]
-                  : []),
-                {
-                  $skip: skip
-                },
-                {
-                  $limit: limit
-                },
-                ...(sortBy !== 'nextEventDate' ? [addNextEventDateField] : []),
-                {
-                  $project: {
-                    username: 1,
-                    firstName: 1,
-                    lastName: 1,
-                    email: 1,
-                    nextEventDate: 1,
-                    eventsCount: 1,
-                    phoneNumber: 1
-                  }
-                }
+                ...pipelineOfGettingAndSortingUsersForEvents(sortBy, sorting, skip, limit)
               ]
             }
           },
@@ -132,7 +209,7 @@ const getUsersSecond = async (req, res) => {
 }
 
 const getUsers = async (req, res) => {
-  return await getUsersSecond(req, res)
+  // return await getUsersSecond(req, res)
 
   const { currentUserId, query } = req
 
@@ -188,45 +265,7 @@ const getUsers = async (req, res) => {
               newRoot: '$usersForEvents'
             }
           },
-          {
-            $lookup: {
-              from: 'user_events',
-              localField: 'events',
-              foreignField: '_id',
-              as: 'events',
-              pipeline: [
-                { $match: { $expr: { $gte: ['$startDate', new Date()] } } },
-                { $limit: 1 },
-                { $project: { startDate: 1, endDate: 1 } }
-              ]
-            }
-          },
-          ...(sortBy
-            ? [
-                ...(sortBy === 'nextEventDate' ? [addNextEventDateField] : []),
-                {
-                  $sort: sorting
-                }
-              ]
-            : []),
-          {
-            $skip: skip
-          },
-          {
-            $limit: limit
-          },
-          ...(sortBy !== 'nextEventDate' ? [addNextEventDateField] : []),
-          {
-            $project: {
-              username: 1,
-              firstName: 1,
-              lastName: 1,
-              email: 1,
-              nextEventDate: 1,
-              eventsCount: 1,
-              phoneNumber: 1
-            }
-          }
+          ...pipelineOfGettingAndSortingUsersForEvents(sortBy, sorting, skip, limit)
         ],
         countOfDocuments: [
           {
